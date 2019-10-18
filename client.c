@@ -53,16 +53,16 @@ int main(int argc, char** argv) {
 	}
 
 	char msg[SIZE_MSG] = {0};
-	printf("Input (\'/help\' to help): \n"); fflush(stdout);
+	printf("Input (\'-help\' to help): \n"); fflush(stdout);
 	for(;;){
 		fgets(input_buf, sizeof(input_buf), stdin);
 		input_buf[strlen(input_buf) - 1] = '\0';
 
-		if(!strcmp("/help", input_buf)){
+		if(!strcmp("-help", input_buf)){
 			printf("HELP:\n");
-			printf("\'/quit\' to shutdown;\n");
+			printf("\'-quit\' to shutdown;\n");
 			fflush(stdout);
-		} else if(!strcmp("/quit", input_buf)) {
+		} else if(!strcmp("-quit", input_buf)) {
 			shutdown(sock, 2);
 			break;
 		} else {
@@ -76,7 +76,7 @@ int main(int argc, char** argv) {
 				printf("Message to SERVER: %s\n", msg); fflush(stdout);
 			}
 
-			memset(input_buf, 0, 100);
+			memset(input_buf, 0, 1000);
 		}
 	}
 
@@ -89,9 +89,6 @@ int readN(int socket, char* buf){
 	int result = 0;
 	int readedBytes = 0;
 	int sizeMsg = SIZE_MSG;
-	readedBytes = recv(socket, buf, sizeMsg, 0);
-	result += readedBytes;
-	sizeMsg -= readedBytes;
 	while(sizeMsg > 0){
 		readedBytes = recv(socket, buf + result, sizeMsg, 0);
 		if (readedBytes <= 0){

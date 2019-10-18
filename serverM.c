@@ -7,8 +7,7 @@
 #include <unistd.h>
 #include <pthread.h>
 #include <string.h>
-
-#define PORT 56561 
+ 
 #define SIZE_MSG 1000
 #define BACKLOG 2
 
@@ -44,9 +43,8 @@ int main(int argc, char** argv) {
     return 0;
 }
 
-//initialized socket
 void* init(int args) {
-
+	char input_buf[SIZE_MSG];
     int listener = args;
 
     if ( listener < 0 ) {
@@ -56,11 +54,22 @@ void* init(int args) {
 	printf("Socket create.\n");
 	fflush(stdout);
 
-    struct sockaddr_in listener_info;
+	struct sockaddr_in listener_info;
 	listener_info.sin_family = AF_INET;
-	listener_info.sin_port = htons(PORT);
-	listener_info.sin_addr.s_addr = htonl(INADDR_ANY);
+	
 
+	printf("Please, write IP address:\n"); fflush(stdout);
+	memset(input_buf, 0, sizeof(input_buf));
+	fgets(input_buf, sizeof(input_buf), stdin);
+	input_buf[strlen(input_buf) - 1] = '\0';
+	listener_info.sin_addr.s_addr = inet_addr(input_buf);
+	printf("Please, write port:\n"); fflush(stdout);
+	memset(input_buf, 0, sizeof(input_buf));
+	fgets(input_buf, sizeof(input_buf), stdin);
+	input_buf[strlen(input_buf) - 1] = '\0';
+	listener_info.sin_port = htons(atoi(input_buf));
+
+    
     int resBind = bind(listener, (struct sockaddr *)&listener_info, sizeof(listener_info));
 	if (resBind < 0 ) {
 		perror( "Can't bind socket" );
@@ -81,22 +90,22 @@ void* help(int listener, pthread_t listener_thread) {
 
 	
 
-	printf("Input (/help to help): \n"); fflush(stdout);
+	printf("Input (-help to help): \n"); fflush(stdout);
     char buf[1000];
 	for(;;) {
 		bzero(buf, 1000);
 		fgets(buf, 1000, stdin);
 		buf[strlen(buf) - 1] = '\0';
 		
-		if(!strcmp("/help", buf)){
+		if(!strcmp("-help", buf)){
 			printf("HELP:\n");
-			printf("\'/ls_clients\' to list users on-line;\n");
-			printf("\'/kick [number client]\' to kick client from server;\n");
-			printf("\'/close\' to shutdown;\n");
+			printf("\'-ls_clients\' to list users online;\n");
+			printf("\'-kick [number client]\' to kick client from server;\n");
+			printf("\'-close\' to shutdown;\n");
 			fflush(stdout);
-		} else if(!strcmp("/ls_clients", buf)){
+		} else if(!strcmp("-ls_clients", buf)){
 				printf("Clients:\n NUMBER  \tADDRESS  \tPORT\n");
-				//printf(" NUMBER  \tADDRESS  \tPORT\n");
+				
 				fflush(stdout);
 				pthread_mutex_lock(&mutex);
 				for(int i = 0; i < client_quantity; i++){
@@ -106,7 +115,7 @@ void* help(int listener, pthread_t listener_thread) {
 				pthread_mutex_unlock(&mutex);
 
 				fflush(stdout);
-		} else if(!strcmp("/close", buf)) {
+		} else if(!strcmp("-close", buf)) {
 				shutdown(listener, 2);
 				close(listener);
 				pthread_join(listener_thread, NULL);
@@ -118,7 +127,7 @@ void* help(int listener, pthread_t listener_thread) {
 				printf("Illegal format!\n"); fflush(stdout);
 				continue;
 			}
-			if(!strcmp("/kick", str)){
+			if(!strcmp("-kick", str)){
 				str = strtok(NULL, sep);
 				int kickNum = atoi(str);
 				if(str[0] != '0' && kickNum == 0){
@@ -126,8 +135,12 @@ void* help(int listener, pthread_t listener_thread) {
 					continue;
 				}
 				kick(kickNum);
+			}else
+			{
+				printf("Illegal format! Please, write \"-help\" for help\n"); fflush(stdout);
+
 			}
-			printf("Illegal format! Please, write \"/help\" for help\n"); fflush(stdout);
+			
 		}
 	}
 
@@ -146,8 +159,7 @@ void* client_handler(void* args){
 	for(;;) {
 		if (readN(sock, msg) <= 0) {
 			printf("Client №%d disconnect\n", index); fflush(stdout);
-			shutdown(sock, 2);
-			close(sock);
+			clients[index].socket = -1;
 			break;
 		} else {
 			printf("Get message from client №%d: %s\n", index, msg); fflush(stdout);
@@ -155,7 +167,8 @@ void* client_handler(void* args){
 		}
 		memset(msg, 0, sizeof(msg));
 	}
-
+	shutdown(sock, 2);
+	close(sock);
 	printf("ENDED CLIENT №%d!\n", index); fflush(stdout);
 }
 
@@ -209,9 +222,6 @@ int readN(int socket, char* buf){
 	int result = 0;
 	int readed_bytes = 0;
 	int size_msg = SIZE_MSG;
-	readed_bytes = recv(socket, buf, size_msg, 0);
-	result += readed_bytes;
-	size_msg -= readed_bytes;
 	while(size_msg > 0){
 		readed_bytes = recv(socket, buf + result, size_msg, 0);
 		if (readed_bytes <= 0){
